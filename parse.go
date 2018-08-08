@@ -23,7 +23,7 @@ type strucTag struct {
 
 func parseStrucTag(tag reflect.StructTag) *strucTag {
 	t := &strucTag{
-		Order: binary.BigEndian,
+		Order: binary.LittleEndian,
 	}
 	tagStr := tag.Get("struc")
 	if tagStr == "" {
