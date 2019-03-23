@@ -17,22 +17,22 @@ type Example struct {
     Var   int `struc:"int32,sizeof=Str"`
     Str   string
     Weird []byte `struc:"[8]int64"`
-    Var   []int `struc:"[]int32,little"`
+    Var   []int `struc:"[]int32,big"`
 }
 ```
 
 Struct tag format
 ----
 
- - ```Var []int `struc:"[]int32,little,sizeof=StringField"` ``` will pack Var as a slice of little-endian int32, and link it as the size of `StringField`.
+ - ```Var []int `struc:"[]int32,big,sizeof=StringField"` ``` will pack Var as a slice of big-endian int32, and link it as the size of `StringField`.
  - `sizeof=`: Indicates this field is a number used to track the length of a another field. `sizeof` fields are automatically updated on `Pack()` based on the current length of the tracked field, and are used to size the target field during `Unpack()`.
  - Bare values will be parsed as type and endianness.
 
 Endian formats
 ----
 
- - `big` (default)
- - `little`
+ - `big`
+ - `little` (default)
 
 Recognized types
 ----
@@ -72,7 +72,7 @@ type Example struct {
     B int `struc:"int16"`
 
     // the sizeof key links a buffer's size to any int field
-    Size int `struc:"int8,little,sizeof=Str"`
+    Size int `struc:"int8,big,sizeof=Str"`
     Str  string
 
     // you can get freaky if you want
