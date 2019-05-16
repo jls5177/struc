@@ -22,6 +22,7 @@ type Field struct {
 	Sizefrom []int
 	Fields   Fields
 	kind     reflect.Kind
+	Bitmap   BitmapperType
 }
 
 func (f *Field) String() string {
@@ -39,13 +40,18 @@ func (f *Field) String() string {
 	if f.Sizeof != nil {
 		out += fmt.Sprintf(", sizeof: %v", f.Sizeof)
 	}
+	if len(f.Bitmap) != 0 {
+		out += fmt.Sprintf(", bitmap: %+v", f.Bitmap)
+	}
 	return "{" + out + "}"
 }
 
 func (f *Field) Size(val reflect.Value, options *Options) int {
 	typ := f.Type.Resolve(options)
 	size := 0
-	if typ == Struct {
+	if f.Bitmap != nil {
+		size = f.Len * typ.Size()
+	} else 	if typ == Struct {
 		vals := []reflect.Value{val}
 		if f.Slice {
 			vals = make([]reflect.Value, val.Len())
@@ -154,7 +160,9 @@ func (f *Field) Pack(buf []byte, val reflect.Value, length int, options *Options
 		}
 		return length, nil
 	}
-	if f.Slice {
+	if f.Bitmap != nil {
+		return bitmapPack(buf, val, length, options, f)
+	} else if f.Slice {
 		// special case strings and byte slices for performance
 		end := val.Len()
 		if !f.Array && typ == Uint8 && (f.defType == Uint8 || f.kind == reflect.String) {
@@ -262,6 +270,8 @@ func (f *Field) Unpack(buf []byte, val reflect.Value, length int, options *Optio
 			val.SetString(string(buf))
 			return nil
 		}
+	} else if f.Bitmap != nil {
+		return bitmapUnpack(buf, val, length, options, f)
 	} else if f.Slice {
 		if val.Cap() < length {
 			val.Set(reflect.MakeSlice(val.Type(), length, length))

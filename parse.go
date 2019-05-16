@@ -80,10 +80,18 @@ func parseField(f reflect.StructField) (fd *Field, tag *strucTag, err error) {
 	}
 	// check for custom types
 	tmp := reflect.New(f.Type)
+	if fd.Ptr {
+		tmp = reflect.Indirect(tmp)
+	}
 	if _, ok := tmp.Interface().(Custom); ok {
 		fd.Type = CustomType
 		return
 	}
+	// If the type is a BitMapper then pull the map here to prevent putting this code everywhere
+	if _, ok := tmp.Interface().(Bitmapper); ok {
+		fd.Bitmap = tmp.Interface().(Bitmapper).GetMap()
+	}
+
 	var defTypeOk bool
 	fd.defType, defTypeOk = reflectTypeMap[fd.kind]
 	// find a type in the struct tag
