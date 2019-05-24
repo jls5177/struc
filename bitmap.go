@@ -50,6 +50,21 @@ func (b *Bitmap) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&b.Values)
 }
 
+func removeDuplicatesFromSlice(s []string) []string {
+	m := make(map[string]bool)
+	for _, item := range s {
+		if _, ok := m[item]; !ok {
+			m[item] = true
+		}
+	}
+
+	var result []string
+	for item, _ := range m {
+		result = append(result, item)
+	}
+	return result
+}
+
 // UnmarshalJSON allows for converting JSON into a Bitmap
 func (b *Bitmap) UnmarshalJSON(data []byte) error {
 	var values []string
@@ -57,6 +72,9 @@ func (b *Bitmap) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	b.Values = append(b.Values, values...)
+
+	// Remove all duplicates from the slice to prevent issues when packing the value
+	b.Values = removeDuplicatesFromSlice(b.Values)
 	return nil
 }
 
@@ -93,7 +111,7 @@ func bitmapPack(buf []byte, val reflect.Value, length int, options *Options, f *
 	var n uint64
 	for _, v := range setValues {
 		if b, valid := bitmap[strings.ToLower(v)]; valid {
-			n += b
+			n |= b
 		} else {
 			log.Panicf("invalid bitmap value: %s", v)
 		}
