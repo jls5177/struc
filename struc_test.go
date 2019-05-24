@@ -15,9 +15,9 @@ type Nested struct {
 type Example struct {
 	Pad    []byte `struc:"[5]pad"`        // 00 00 00 00 00
 	I8f    int    `struc:"int8"`          // 01
-	I16f   int    `struc:"int16"`         // 00 02
-	I32f   int    `struc:"int32"`         // 00 00 00 03
-	I64f   int    `struc:"int64"`         // 00 00 00 00 00 00 00 04
+	I16f   int    `struc:"int16,big"`         // 00 02
+	I32f   int    `struc:"int32,big"`         // 00 00 00 03
+	I64f   int    `struc:"int64,big"`         // 00 00 00 00 00 00 00 04
 	U8f    int    `struc:"uint8,little"`  // 05
 	U16f   int    `struc:"uint16,little"` // 06 00
 	U32f   int    `struc:"uint32,little"` // 07 00 00 00
@@ -26,9 +26,9 @@ type Example struct {
 	Byte4f []byte `struc:"[4]byte"`       // "abcd"
 
 	I8     int8    // 09
-	I16    int16   // 00 0a
-	I32    int32   // 00 00 00 0b
-	I64    int64   // 00 00 00 00 00 00 00 0c
+	I16    int16   `struc:"big"`// 00 0a
+	I32    int32   `struc:"big"`// 00 00 00 0b
+	I64    int64   `struc:"big"`// 00 00 00 00 00 00 00 0c
 	U8     uint8   `struc:"little"` // 0d
 	U16    uint16  `struc:"little"` // 0e 00
 	U32    uint32  `struc:"little"` // 0f 00 00 00
@@ -36,13 +36,13 @@ type Example struct {
 	BoolT  bool    // 01
 	BoolF  bool    // 00
 	Byte4  [4]byte // "efgh"
-	Float1 float32 // 41 a0 00 00
-	Float2 float64 // 41 35 00 00 00 00 00 00
+	Float1 float32 `struc:"big"`  // 41 a0 00 00
+	Float2 float64 `struc:"big"`  // 41 35 00 00 00 00 00 00
 
-	I32f2 int64 `struc:"int32"`  // ff ff ff ff
-	U32f2 int64 `struc:"uint32"` // ff ff ff ff
+	I32f2 int64 `struc:"int32,big"`  // ff ff ff ff
+	U32f2 int64 `struc:"uint32,big"` // ff ff ff ff
 
-	I32f3 int32 `struc:"int64"` // ff ff ff ff ff ff ff ff
+	I32f3 int32 `struc:"int64,big"` // ff ff ff ff ff ff ff ff
 
 	Size int    `struc:"sizeof=Str,little"` // 0a 00 00 00
 	Str  string `struc:"[]byte"`            // "ijklmnopqr"
@@ -63,9 +63,9 @@ type Example struct {
 
 	Nested  Nested  // 00 00 00 01
 	NestedP *Nested // 00 00 00 02
-	TestP64 *int    `struc:"int64"` // 00 00 00 05
+	TestP64 *int    `struc:"int64,big"` // 00 00 00 05
 
-	NestedSize int      `struc:"sizeof=NestedA"` // 00 00 00 02
+	NestedSize int      `struc:"big,sizeof=NestedA"` // 00 00 00 02
 	NestedA    []Nested // [00 00 00 03, 00 00 00 04]
 
 	Skip int `struc:"skip"`

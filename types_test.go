@@ -2,6 +2,7 @@ package struc
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 )
 
@@ -27,7 +28,7 @@ func TestSizeOffTypes(t *testing.T) {
 	var buf bytes.Buffer
 	test := &sizeOffTest{1, 2}
 	for _, b := range bits {
-		if err := PackWithOptions(&buf, test, &Options{PtrSize: b}); err != nil {
+		if err := PackWithOptions(&buf, test, &Options{PtrSize: b, Order: binary.BigEndian}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -43,7 +44,7 @@ func TestSizeOffTypes(t *testing.T) {
 	reader := bytes.NewReader(buf.Bytes())
 	for _, b := range bits {
 		out := &sizeOffTest{}
-		if err := UnpackWithOptions(reader, out, &Options{PtrSize: b}); err != nil {
+		if err := UnpackWithOptions(reader, out, &Options{PtrSize: b, Order: binary.BigEndian}); err != nil {
 			t.Fatal(err)
 		}
 		if out.Size != 1 || out.Off != 2 {
