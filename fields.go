@@ -35,29 +35,43 @@ func (f Fields) Sizeof(val reflect.Value, options *Options) int {
 	size := 0
 	for i, field := range f {
 		if field != nil {
-			size += field.Size(val.Field(i), options)
+			var sliceLength int
+			// Grab the size in the from field if one was specified
+			if field.Sizefrom != nil {
+				if n, ok := SizeFromField(val.FieldByIndex(field.Sizefrom)); ok {
+					sliceLength = n
+				}
+			}
+			size += field.Size(val.Field(i), options, sliceLength)
 		}
 	}
 	return size
 }
 
-func (f Fields) sizefrom(val reflect.Value, index []int) int {
-	field := val.FieldByIndex(index)
+func SizeFromField(field reflect.Value) (int, bool) {
 	switch field.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return int(field.Int())
+		return int(field.Int()), true
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		n := int(field.Uint())
 		// all the builtin array length types are native int
 		// so this guards against weird truncation
 		if n < 0 {
-			return 0
+			return 0, true
 		}
-		return n
+		return n, true
 	default:
-		name := val.Type().FieldByIndex(index).Name
-		panic(fmt.Sprintf("sizeof field %T.%s not an integer type", val.Interface(), name))
+		return 0, false
 	}
+}
+
+func (f Fields) sizefrom(val reflect.Value, index []int) int {
+	field := val.FieldByIndex(index)
+	if n, ok := SizeFromField(field); ok {
+		return n
+	}
+	name := val.Type().FieldByIndex(index).Name
+	panic(fmt.Sprintf("sizeof field %T.%s not an integer type", val.Interface(), name))
 }
 
 func (f Fields) Pack(buf []byte, val reflect.Value, options *Options) (int, error) {

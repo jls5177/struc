@@ -46,7 +46,7 @@ func (f *Field) String() string {
 	return "{" + out + "}"
 }
 
-func (f *Field) Size(val reflect.Value, options *Options) int {
+func (f *Field) Size(val reflect.Value, options *Options, sliceLength int) int {
 	typ := f.Type.Resolve(options)
 	size := 0
 	if f.Bitmap != nil {
@@ -68,6 +68,10 @@ func (f *Field) Size(val reflect.Value, options *Options) int {
 		length := val.Len()
 		if f.Len > 1 {
 			length = f.Len
+		}
+		// Grab the size in the from field if one was specified
+		if sliceLength > 0 {
+			length = sliceLength
 		}
 		size = length * typ.Size()
 	} else if typ == CustomType {
@@ -172,14 +176,18 @@ func (f *Field) Pack(buf []byte, val reflect.Value, length int, options *Options
 			} else {
 				tmp = val.Bytes()
 			}
-			copy(buf, tmp)
+			// If the requested length is longer than the value, then we need to pad the buffer
 			if end < length {
+				copy(buf, tmp[:end])
 				// TODO: allow configuring pad byte?
 				rep := bytes.Repeat([]byte{0}, length-end)
 				copy(buf[end:], rep)
 				return length, nil
+			} else {
+				// Else, just copy the length requested
+				copy(buf, tmp[:length])
 			}
-			return val.Len(), nil
+			return length, nil
 		}
 		pos := 0
 		var zero reflect.Value
