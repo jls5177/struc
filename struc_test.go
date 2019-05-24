@@ -229,3 +229,144 @@ func TestSliceUnderrun(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+
+type NestedParent struct {
+	Length uint8
+	N NestedSliceSize
+}
+
+
+type NestedSliceSize struct {
+	*NestedParent `struc:"skip"`
+	S []uint8 `struc:"[]uint8,sizefrom=Length"`
+}
+
+func NewNestedParent() *NestedParent {
+	n := &NestedParent{}
+	n.N.NestedParent = n
+	return n
+}
+
+func TestNestedSlice(t *testing.T) {
+	n := NewNestedParent()
+	n.N.S = []uint8{
+		0x1,
+		0x2,
+		0x3,
+	}
+	n.Length = 2
+	n.N.NestedParent = n
+	var buf bytes.Buffer
+	n2 := NewNestedParent()
+	if err := Pack(&buf, &n); err != nil {
+		t.Fatal(err.Error())
+	}
+	if err := Unpack(&buf, &n2); err != nil {
+		t.Fatal(err.Error())
+	}
+	if _, err := Sizeof(&n); err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+type StringSlice struct {
+	Length uint8
+	S string `struc:"sizefrom=Length"`
+}
+
+func TestStringSlice(t *testing.T) {
+	v := StringSlice{
+		Length: 6,
+		S: "Hello, Tester!",
+	}
+	vBytes := []byte{6, 72, 101, 108, 108, 111, 44}
+	var buf bytes.Buffer
+	if err := Pack(&buf, &v); err != nil {
+		t.Fatal(err.Error())
+	}
+	if !reflect.DeepEqual(vBytes, buf.Bytes()) {
+		fmt.Printf("got: %#v\nwant: %#v\n", buf, vBytes)
+		t.Fatal("decode failed")
+	}
+}
+
+func TestStringSlicePadded(t *testing.T) {
+	v := StringSlice{
+		Length: 20,
+		S: "Hello, Tester!",
+	}
+	vBytes := []byte{20, 72, 101, 108, 108, 111, 44, 32, 84, 101, 115, 116, 101, 114, 33, 0, 0, 0, 0, 0, 0}
+	var buf bytes.Buffer
+	if err := Pack(&buf, &v); err != nil {
+		t.Fatal(err.Error())
+	}
+	if !reflect.DeepEqual(vBytes, buf.Bytes()) {
+		fmt.Printf("got: %#v\nwant: %#v\n", buf, vBytes)
+		t.Fatal("decode failed")
+	}
+}
+
+type IntSlice struct {
+	Length uint8
+	I []uint16 `struc:"sizefrom=Length"`
+}
+
+func TestIntSlice(t *testing.T) {
+	v := IntSlice{
+		Length: 2,
+		I: []uint16{0x1122, 0x2233, 0x3344},
+	}
+	wanted := []byte{2, 0x22, 0x11, 0x33, 0x22}
+	var buf bytes.Buffer
+	if err := Pack(&buf, &v); err != nil {
+		t.Fatal(err.Error())
+	}
+	if !reflect.DeepEqual(wanted, buf.Bytes()) {
+		fmt.Printf("got: %#v\nwant: %#v\n", buf, wanted)
+		t.Fatal("decode failed")
+	}
+
+	var v2 IntSlice
+	if err := Unpack(&buf, &v2); err != nil {
+		t.Fatal(err.Error())
+	}
+	var buf2 bytes.Buffer
+	if err := Pack(&buf2, &v); err != nil {
+		t.Fatal(err.Error())
+	}
+	if !reflect.DeepEqual(wanted, buf2.Bytes()) {
+		fmt.Printf("got: %#v\nwant: %#v\n", buf2.Bytes(), wanted)
+		t.Fatal("decode failed")
+	}
+}
+
+
+func TestIntSlicePadded(t *testing.T) {
+	v := IntSlice{
+		Length: 4,
+		I: []uint16{0x1122, 0x2233},
+	}
+	wanted := []byte{4, 0x22, 0x11, 0x33, 0x22, 0, 0, 0, 0}
+	var buf bytes.Buffer
+	if err := Pack(&buf, &v); err != nil {
+		t.Fatal(err.Error())
+	}
+	if !reflect.DeepEqual(wanted, buf.Bytes()) {
+		fmt.Printf("got: %#v\nwant: %#v\n", buf, wanted)
+		t.Fatal("decode failed")
+	}
+
+	var v2 IntSlice
+	if err := Unpack(&buf, &v2); err != nil {
+		t.Fatal(err.Error())
+	}
+	var buf2 bytes.Buffer
+	if err := Pack(&buf2, &v); err != nil {
+		t.Fatal(err.Error())
+	}
+	if !reflect.DeepEqual(wanted, buf2.Bytes()) {
+		fmt.Printf("got: %#v\nwant: %#v\n", buf2.Bytes(), wanted)
+		t.Fatal("decode failed")
+	}
+}
