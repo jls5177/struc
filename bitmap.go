@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -47,6 +48,10 @@ func (b *Bitmap) MarshalJSON() ([]byte, error) {
 	if b.Values == nil {
 		return []byte(""), nil
 	}
+	if len(b.Values) == 1 {
+		value := b.Values[0]
+		return json.Marshal(&value)
+	}
 	return json.Marshal(&b.Values)
 }
 
@@ -68,10 +73,22 @@ func removeDuplicatesFromSlice(s []string) []string {
 // UnmarshalJSON allows for converting JSON into a Bitmap
 func (b *Bitmap) UnmarshalJSON(data []byte) error {
 	var values []string
-	if err := json.Unmarshal(data, &values); err != nil {
-		return err
+
+	// Determine if the value is a list of strings to properly decode the value
+	var re = regexp.MustCompile(`(?m)\[.*?\]`)
+	if re.Match(data) {
+		if err := json.Unmarshal(data, &values); err != nil {
+			return err
+		}
+
+		b.Values = append(b.Values, values...)
+	} else {
+		var value string
+		if err := json.Unmarshal(data, &value); err != nil {
+			return err
+		}
+		b.Values = append(b.Values, value)
 	}
-	b.Values = append(b.Values, values...)
 
 	// Remove all duplicates from the slice to prevent issues when packing the value
 	b.Values = removeDuplicatesFromSlice(b.Values)

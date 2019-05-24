@@ -2,6 +2,7 @@ package struc
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/ghodss/yaml"
 	"reflect"
@@ -43,8 +44,44 @@ func TestFruitUnderstanding(t *testing.T) {
 - APPLES
 - ORANGES
 - GRAPES
-FruitOptions:
- - Skin Peeled`
+FruitOptions: Skin Peeled`
+
+	// Convert YAML into structure
+	if err := yaml.Unmarshal([]byte(data), &sample); err != nil {
+		t.Errorf("fail!fail!fail!: %v", err.Error())
+	}
+
+	// Pack the structure into bytes
+	var buf bytes.Buffer
+	if err := Pack(&buf, &sample); err != nil {
+		t.Errorf("fail!fail!fail!: %v", err.Error())
+	}
+	fmt.Printf("Value: %X\n", buf.Bytes())
+
+	// Verify Unpack works by converting bytes into structure
+	unsample := SupportedFruitsTable{
+		SupportedFruits: SupportedFruits{},
+		FruitOptions:    &FruitOptions{},
+	}
+	if err := Unpack(&buf, &unsample); err != nil {
+		t.Errorf("fail!fail!fail!: %v", err.Error())
+	}
+
+	// Sort the []strings and perform a deep equality check
+	sort.Strings(sample.SupportedFruits.Values)
+	sort.Strings(unsample.SupportedFruits.Values)
+	if !reflect.DeepEqual(sample.SupportedFruits, unsample.SupportedFruits) {
+		t.Errorf("fail!fail!fail!: Pack and Unpack not equal")
+	}
+}
+
+func TestFruitUnderstanding2(t *testing.T) {
+	var sample SupportedFruitsTable
+
+	var data = `SupportedFruits:
+- APPLES
+- ORANGES
+- GRAPES`
 
 	// Convert YAML into structure
 	if err := yaml.Unmarshal([]byte(data), &sample); err != nil {
@@ -87,6 +124,10 @@ func TestFruitMarshaling(t *testing.T) {
 		t.Errorf("fail!fail!fail!: %v", err.Error())
 	}
 
+	if v, err := json.Marshal(&sample); err == nil {
+		fmt.Printf(string(v))
+	}
+
 	// Now go backawards back to YAML and compare
 	sample2 := SupportedFruitsTable{
 		SupportedFruits: SupportedFruits{
@@ -111,3 +152,43 @@ func TestFruitMarshaling(t *testing.T) {
 		t.Errorf("fail!fail!fail!: Unmarshal != Marshal are not the same")
 	}
 }
+
+
+func TestFruitStringBitmap(t *testing.T) {
+	var sample SupportedFruitsTable
+
+	var data = `SupportedFruits: ORANGES`
+
+	// Convert YAML into structure
+	if err := yaml.Unmarshal([]byte(data), &sample); err != nil {
+		t.Errorf("fail!fail!fail!: %v", err.Error())
+	}
+
+	if v, err := json.Marshal(&sample); err == nil {
+		fmt.Printf(string(v))
+	}
+
+	// Now go backawards back to YAML and compare
+	sample2 := SupportedFruitsTable{
+		SupportedFruits: SupportedFruits{
+			Bitmap{
+				Values: []string{
+					"ORANGES",
+				},
+			},
+		},
+	}
+	var buf2 []byte
+	buf2, err := yaml.Marshal(&sample2)
+	if err != nil {
+		t.Errorf("fail!fail!fail!: %v", err.Error())
+	} else {
+		fmt.Printf("Return vaule is: \n%v", string(buf2))
+	}
+
+	data2 := string(buf2)
+	if strings.TrimSpace(data) != strings.TrimSpace(data2) {
+		t.Errorf("fail!fail!fail!: Unmarshal != Marshal are not the same")
+	}
+}
+
