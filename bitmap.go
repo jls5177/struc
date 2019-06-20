@@ -129,7 +129,7 @@ func bitmapPack(buf []byte, val reflect.Value, length int, options *Options, f *
 	for _, v := range setValues {
 		if b, valid := bitmap[strings.ToLower(v)]; valid {
 			n |= b
-		} else {
+		} else if v != "" {
 			log.Panicf("invalid bitmap value: %s", v)
 		}
 	}
