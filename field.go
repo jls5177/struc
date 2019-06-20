@@ -51,7 +51,7 @@ func (f *Field) Size(val reflect.Value, options *Options, sliceLength int) int {
 	size := 0
 	if f.Bitmap != nil {
 		size = f.Len * typ.Size()
-	} else 	if typ == Struct {
+	} else if typ == Struct {
 		vals := []reflect.Value{val}
 		if f.Slice {
 			vals = make([]reflect.Value, val.Len())
