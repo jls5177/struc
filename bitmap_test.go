@@ -11,30 +11,46 @@ import (
 	"testing"
 )
 
+const (
+	Apples  = 1 << 0
+	Oranges = 1 << 1
+	Grapes  = 1 << 4
+)
+
 type SupportedFruits struct {
 	Bitmap
 }
+
 func (b *SupportedFruits) GetMap() BitmapperType {
-	return ConvertBitmap(map[string]uint64{
-		"APPLES":  0,
-		"ORANGES": 1,
-		"GRAPES":  4,
+	return ConvertEnum(map[string]uint64{
+		"APPLES":  Apples,
+		"ORANGES": Oranges,
+		"GRAPES":  Grapes,
 	})
 }
 
 type FruitOptions struct {
 	Bitmap
 }
+
+const (
+	SkinNotPeeled = 2
+	SkinPeeled = 3
+)
 func (b *FruitOptions) GetMap() BitmapperType {
 	return ConvertEnum(map[string]uint64{
-		"Skin Not Peeled": 2,
-		"Skin Peeled":     3,
+		"Skin Not Peeled": SkinNotPeeled,
+		"Skin Peeled":     SkinPeeled,
 	})
+}
+
+func (b *FruitOptions) Value() (uint64, error) {
+	return b.Bitmap.Value(b)
 }
 
 type SupportedFruitsTable struct {
 	SupportedFruits SupportedFruits `struc:"uint32" json:",omitempty"`
-	FruitOptions *FruitOptions `struc:"uint32" json:",omitempty"`
+	FruitOptions    *FruitOptions   `struc:"uint32" json:",omitempty"`
 }
 
 func TestFruitUnderstanding(t *testing.T) {
@@ -153,7 +169,6 @@ func TestFruitMarshaling(t *testing.T) {
 	}
 }
 
-
 func TestFruitStringBitmap(t *testing.T) {
 	var sample SupportedFruitsTable
 
@@ -192,3 +207,28 @@ func TestFruitStringBitmap(t *testing.T) {
 	}
 }
 
+func TestBitmapToValue(t *testing.T) {
+	bitmap := SupportedFruits{
+		Bitmap{
+			Values: []string{
+				"ORANGES",
+			},
+		},
+	}
+
+	value, err := bitmap.Value(&bitmap)
+	if err != nil {
+		t.Error(err)
+	}
+	if value != Oranges {
+		t.Errorf("invalid value: %v != %v", value, Oranges)
+	}
+
+	value, err = BitmapValue(&bitmap)
+	if err != nil {
+		t.Error(err)
+	}
+	if value != Oranges {
+		t.Errorf("invalid value: %v != %v", value, Oranges)
+	}
+}

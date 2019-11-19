@@ -2,6 +2,7 @@ package struc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -53,6 +54,56 @@ func (b *Bitmap) MarshalJSON() ([]byte, error) {
 		return json.Marshal(&value)
 	}
 	return json.Marshal(&b.Values)
+}
+
+// BitmapValue returns the integer value for the given structure that embeds the Bitmap type
+func BitmapValue(bitmapper Bitmapper) (uint64, error) {
+	// use reflection to get the bitmap structure member
+	val := reflect.ValueOf(bitmapper)
+	return bitmapValue(val, bitmapper)
+}
+
+func bitmapValue(val reflect.Value, bitmapper Bitmapper) (uint64, error) {
+	for val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			return 0, nil
+		}
+		val = reflect.Indirect(val)
+	}
+	field := val.FieldByName("Bitmap")
+	if !field.IsValid() {
+		return 0, fmt.Errorf("type is missing embedded Bitmap structure: %+v\n", val.Type())
+	}
+
+	bitmap, ok := field.Interface().(Bitmap)
+	if !ok {
+		return 0, fmt.Errorf("missing embedded Bitmap structure: %+v", val.Type())
+	}
+	return bitmap.Value(bitmapper)
+}
+
+// Value converts the value corresponding to the the flags set. It is not possible to
+// get the parent structure from an embedded type using reflection. So make the user
+// pass the structure in.
+func (b *Bitmap) Value(bitmapper Bitmapper) (uint64, error) {
+	var err error
+
+	// Build the bitmap value, but first create a case-insensitive bitmap map
+	bitmap := make(BitmapperType, len(bitmapper.GetMap()))
+	for k, v := range bitmapper.GetMap() {
+		bitmap[strings.ToLower(k)] = v
+	}
+
+	var n uint64
+	for _, v := range b.Values {
+		if b, valid := bitmap[strings.ToLower(v)]; valid {
+			n |= b
+		} else if v != "" {
+			err = errors.New(fmt.Sprintf("invalid bitmap value: %s", v))
+			break
+		}
+	}
+	return n, err
 }
 
 func removeDuplicatesFromSlice(s []string) []string {
@@ -114,24 +165,11 @@ func bitmapPack(buf []byte, val reflect.Value, length int, options *Options, f *
 		}
 		val = reflect.Indirect(val)
 	}
-	field := val.FieldByName("Bitmap")
-	if !field.IsValid() {
-		return 0, fmt.Errorf("type is missing embedded Bitmap structure: %+v\n", val.Type())
-	}
-	setValues := field.Interface().(Bitmap).Values
+	bitmapper := val.Addr().Interface().(Bitmapper)
 
-	// Build the bitmap value, but first create a case-insensitive bitmap map
-	bitmap := make(BitmapperType, len(f.Bitmap))
-	for k, v := range f.Bitmap {
-		bitmap[strings.ToLower(k)] = v
-	}
-	var n uint64
-	for _, v := range setValues {
-		if b, valid := bitmap[strings.ToLower(v)]; valid {
-			n |= b
-		} else if v != "" {
-			log.Panicf("invalid bitmap value: %s", v)
-		}
+	n, err := bitmapValue(val, bitmapper)
+	if err != nil {
+		log.Panic(err.Error())
 	}
 
 	// Convert the uint64 into the requested size
