@@ -10,7 +10,20 @@ import (
 	"strings"
 )
 
-type BitmapperType = map[string]uint64
+type BitmapperType map[string]uint64
+
+// AppendRange adds a range of string integers to the given BitMapperType
+// For instance, AppendRange(0,2) will add "0"=0,"1"=1, and "2"=2.
+func (b BitmapperType) AppendRange(start, stop, step uint64) BitmapperType {
+	if step == 0 || stop < start {
+		return b
+	}
+	for cur := start; cur <= stop; cur += step {
+		val := fmt.Sprintf("%d", cur)
+		b[val] = cur
+	}
+	return b
+}
 
 type Bitmapper interface {
 	GetMap() BitmapperType

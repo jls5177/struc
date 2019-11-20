@@ -232,3 +232,33 @@ func TestBitmapToValue(t *testing.T) {
 		t.Errorf("invalid value: %v != %v", value, Oranges)
 	}
 }
+
+type BitmapRange struct {
+	Bitmap
+}
+
+func (b *BitmapRange) GetMap() BitmapperType {
+	return ConvertEnum(map[string]uint64{
+		"APPLES":  Apples,
+		"ORANGES": Oranges,
+		"GRAPES":  Grapes,
+	}).AppendRange(0,8, 1)
+}
+
+func TestBitmapRange(t *testing.T) {
+	bitmap := BitmapRange{
+		Bitmap{
+			Values: []string{
+				"5",
+			},
+		},
+	}
+
+	value, err := bitmap.Value(&bitmap)
+	if err != nil {
+		t.Error(err)
+	}
+	if value != 5 {
+		t.Errorf("invalid value: %v != %v", value, Oranges)
+	}
+}
