@@ -78,6 +78,15 @@ func parseField(f reflect.StructField) (fd *Field, tag *strucTag, err error) {
 		fd.Ptr = true
 		fd.kind = f.Type.Elem().Kind()
 	}
+
+	if fd.Slice && fd.kind == reflect.Ptr {
+		fdElem := f.Type.Elem()
+		for fdElem.Kind() == reflect.Ptr {
+			fdElem = fdElem.Elem()
+		}
+		fd.kind = fdElem.Kind()
+	}
+
 	// check for custom types
 	tmp := reflect.New(f.Type)
 	if fd.Ptr {
@@ -181,6 +190,9 @@ func parseFieldsLocked(v reflect.Value) (Fields, error) {
 			}
 			if f.Slice {
 				typ = typ.Elem()
+				for typ.Kind() == reflect.Ptr {
+					typ = typ.Elem()
+				}
 			}
 			f.Fields, err = parseFieldsLocked(reflect.New(typ))
 			if err != nil {

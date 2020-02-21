@@ -139,6 +139,12 @@ func (f Fields) Unpack(r io.Reader, val reflect.Value, options *Options) error {
 				vals := reflect.MakeSlice(v.Type(), length, length)
 				for i := 0; i < length; i++ {
 					v := vals.Index(i)
+
+					// create a new element to unpack into if have a pointer slice
+					if v.Kind() == reflect.Ptr && !v.Elem().IsValid() {
+						v.Set(reflect.New(v.Type().Elem()))
+					}
+
 					fields, err := parseFields(v)
 					if err != nil {
 						return err

@@ -370,3 +370,50 @@ func TestIntSlicePadded(t *testing.T) {
 		t.Fatal("decode failed")
 	}
 }
+
+type PointerSlice struct {
+	Length uint8 `struc:"sizeof=I"`
+	I []*IntSlice
+}
+
+func TestPointerSlice(t *testing.T) {
+	v := PointerSlice{
+		Length: 2,
+		I: []*IntSlice{
+			{
+				Length: 2,
+				I:      []uint16{
+					0x00, 0x11,
+				},
+			},
+			{
+				Length: 2,
+				I:      []uint16{
+					0x22, 0x33,
+				},
+			},
+		},
+	}
+	wanted := []byte{2, 0x2, 0x00, 0x00, 0x11,0x00, 0x2, 0x22,0x00, 0x33, 0x00}
+	var buf bytes.Buffer
+	if err := Pack(&buf, &v); err != nil {
+		t.Fatal(err.Error())
+	}
+	if !reflect.DeepEqual(wanted, buf.Bytes()) {
+		fmt.Printf("got: %#v\nwant: %#v\n", buf, wanted)
+		t.Fatal("decode failed")
+	}
+
+	var v2 PointerSlice
+	if err := Unpack(&buf, &v2); err != nil {
+		t.Fatal(err.Error())
+	}
+	var buf2 bytes.Buffer
+	if err := Pack(&buf2, &v); err != nil {
+		t.Fatal(err.Error())
+	}
+	if !reflect.DeepEqual(wanted, buf2.Bytes()) {
+		fmt.Printf("got: %#v\nwant: %#v\n", buf2.Bytes(), wanted)
+		t.Fatal("decode failed")
+	}
+}
