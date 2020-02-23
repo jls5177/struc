@@ -49,7 +49,7 @@ type Example struct {
 	Strb string `struc:"[4]byte"`           // "stuv"
 
 	Size2 int    `struc:"uint8,sizeof=Str2"` // 04
-	Str2  string // "1234"
+	Str2  string // "1234\0"
 
 	Size3 int    `struc:"uint8,sizeof=Bstr"` // 04
 	Bstr  []byte // "5678"
@@ -405,6 +405,49 @@ func TestPointerSlice(t *testing.T) {
 	}
 
 	var v2 PointerSlice
+	if err := Unpack(&buf, &v2); err != nil {
+		t.Fatal(err.Error())
+	}
+	var buf2 bytes.Buffer
+	if err := Pack(&buf2, &v); err != nil {
+		t.Fatal(err.Error())
+	}
+	if !reflect.DeepEqual(wanted, buf2.Bytes()) {
+		fmt.Printf("got: %#v\nwant: %#v\n", buf2.Bytes(), wanted)
+		t.Fatal("decode failed")
+	}
+}
+
+type StringSlice2 struct {
+	Length    uint32 `struc:"sizeof=Values"`
+	Values    []string
+	StrLength uint32 `struc:"sizeof=Str"`
+	Str       string
+	Str2Length uint32 `struc:"sizeof=Str2"`
+	Str2      string
+}
+
+func TestStringSlice2(t *testing.T) {
+	v := StringSlice2{
+		Values: []string{
+			"Hello",
+			"World!",
+		},
+		StrLength: 2,
+		Str: "HW",
+		Str2: "HW",
+	}
+	wanted := []byte{0x2, 0x0, 0x0, 0x0, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x0, 2,0,0,0,0x48, 0x57, 3,0,0,0, 0x48, 0x57, 0x00}
+	var buf bytes.Buffer
+	if err := Pack(&buf, &v); err != nil {
+		t.Fatal(err.Error())
+	}
+	if !reflect.DeepEqual(wanted, buf.Bytes()) {
+		fmt.Printf(" got: %#v\nwant: %#v\n", buf.Bytes(), wanted)
+		t.Fatal("encode failed")
+	}
+
+	var v2 StringSlice2
 	if err := Unpack(&buf, &v2); err != nil {
 		t.Fatal(err.Error())
 	}

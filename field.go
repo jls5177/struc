@@ -9,20 +9,21 @@ import (
 )
 
 type Field struct {
-	Name     string
-	Ptr      bool
-	Index    int
-	Type     Type
-	defType  Type
-	Array    bool
-	Slice    bool
-	Len      int
-	Order    binary.ByteOrder
-	Sizeof   []int
-	Sizefrom []int
-	Fields   Fields
-	kind     reflect.Kind
-	Bitmap   BitmapperType
+	Name       string
+	Ptr        bool
+	Index      int
+	Type       Type
+	defType    Type
+	Array      bool
+	Slice      bool
+	Len        int
+	Order      binary.ByteOrder
+	Sizeof     []int
+	Sizefrom   []int
+	Fields     Fields
+	kind       reflect.Kind
+	Bitmap     BitmapperType
+	NullString bool
 }
 
 func (f *Field) String() string {
@@ -46,12 +47,16 @@ func (f *Field) String() string {
 	return "{" + out + "}"
 }
 
+func (f *Field) IsString() bool {
+	return (f.kind == reflect.String) && (f.Type == String)
+}
+
 func (f *Field) Size(val reflect.Value, options *Options, sliceLength int) int {
 	typ := f.Type.Resolve(options)
 	size := 0
 	if f.Bitmap != nil {
 		size = f.Len * typ.Size()
-	} else if typ == Struct {
+	} else if typ == Struct || (f.Slice && f.IsString()) {
 		vals := []reflect.Value{val}
 		if f.Slice {
 			vals = make([]reflect.Value, val.Len())
@@ -60,11 +65,16 @@ func (f *Field) Size(val reflect.Value, options *Options, sliceLength int) int {
 			}
 		}
 		for _, val := range vals {
-			size += f.Fields.Sizeof(val, options)
+			// Always include the null byte for string slices
+			if f.IsString() {
+				size += val.Len() + 1
+			} else {
+				size += f.Fields.Sizeof(val, options)
+			}
 		}
 	} else if typ == Pad {
 		size = f.Len
-	} else if f.Slice || f.kind == reflect.String {
+	} else if f.Slice || f.IsString() {
 		length := val.Len()
 		if f.Len > 1 {
 			length = f.Len
@@ -72,6 +82,10 @@ func (f *Field) Size(val reflect.Value, options *Options, sliceLength int) int {
 		// Grab the size in the from field if one was specified
 		if sliceLength > 0 {
 			length = sliceLength
+		} else if f.IsString() {
+			// Otherwise, use the full length and Null terminate strings
+			length += 1
+			f.NullString = true
 		}
 		size = length * typ.Size()
 	} else if typ == CustomType {
@@ -142,6 +156,9 @@ func (f *Field) packVal(buf []byte, val reflect.Value, length int, options *Opti
 		switch f.kind {
 		case reflect.String:
 			size = val.Len()
+			if length == 1 {
+				size += 1 // Add null byte
+			}
 			copy(buf, []byte(val.String()))
 		default:
 			// TODO: handle kind != bytes here
@@ -271,7 +288,7 @@ func (f *Field) unpackVal(buf []byte, val reflect.Value, length int, options *Op
 
 func (f *Field) Unpack(buf []byte, val reflect.Value, length int, options *Options) error {
 	typ := f.Type.Resolve(options)
-	if typ == Pad || f.kind == reflect.String {
+	if typ == Pad || (f.IsString() && !f.Slice) || (f.kind == reflect.String && !f.IsString()) {
 		if typ == Pad {
 			return nil
 		} else {

@@ -1,6 +1,7 @@
 package struc
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -93,6 +94,10 @@ func (f Fields) Pack(buf []byte, val reflect.Value, options *Options) (int, erro
 		}
 		if field.Sizeof != nil {
 			length := val.FieldByIndex(field.Sizeof).Len()
+			sizeofField := f[field.Sizeof[0]]
+			if sizeofField.NullString {
+				length += 1
+			}
 			switch field.kind {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				// allocating a new int here has fewer side effects (doesn't update the original struct)
@@ -171,6 +176,29 @@ func (f Fields) Unpack(r io.Reader, val reflect.Value, options *Options) error {
 				if err := v.Addr().Interface().(Custom).Unpack(r, length, options); err != nil {
 					return err
 				}
+			} else if typ == String {
+				if field.Slice {
+					vals := reflect.MakeSlice(v.Type(), length, length)
+					for i := 0; i < length; i++ {
+						v := vals.Index(i)
+
+						// create a new element to unpack into if have a pointer slice
+						if v.Kind() == reflect.Ptr && !v.Elem().IsValid() {
+							v.Set(reflect.New(v.Type().Elem()))
+						}
+
+						s := readString(r, -1)
+						v.SetString(s)
+					}
+					v.Set(vals)
+				} else {
+					max := -1
+					if field.Sizefrom != nil && length != 0 {
+						max = length
+					}
+					s := readString(r, max)
+					v.SetString(s)
+				}
 			} else {
 				size := length * field.Type.Resolve(options).Size()
 				if size < 8 {
@@ -189,4 +217,30 @@ func (f Fields) Unpack(r io.Reader, val reflect.Value, options *Options) error {
 		}
 	}
 	return nil
+}
+
+// readString reads a string byte by byte until either max characters are
+// read or we reach a null string (if max == -1).
+func readString(r io.Reader, max int) string {
+	stringBuf := bytes.Buffer{}
+	if max == 0 {
+		return ""
+	}
+
+	var err error
+	var n int
+	b := make([]uint8, 1)
+	for {
+		n, err = r.Read(b)
+		if err == io.EOF || n != 1 {
+			break
+		} else if max < 0 && b[0] == 0 {
+			break
+		}
+		stringBuf.Write(b)
+		if max > 0 && stringBuf.Len() >= max {
+			break
+		}
+	}
+	return string(stringBuf.Bytes())
 }
